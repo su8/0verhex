@@ -24,15 +24,39 @@
 #include <string>
 #include <cstdlib>
 #include <algorithm>
+#include <stack>
+#include <limits>
 #include <ncurses.h>
 
+// Structure to store an edit operation
+struct Edit {
+  size_t offset;
+  unsigned char oldValue;
+  unsigned char newValue;
+};
+
+// File I/O
 bool readFile(const std::string &filename, std::vector<unsigned char> &buffer);
 bool writeFile(const std::string &filename, const std::vector<unsigned char> &buffer);
+
+// Draw functions
 void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t start, size_t cursor, size_t bytesPerLine);
 void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified);
 std::string prompt(WINDOW *statusWin, const std::string &msg);
+
+// Searching functions
 size_t searchText(const std::vector<unsigned char> &buffer, const std::string &text, size_t start);
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
+
+// Edit a byte and push to undo stack
+void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+// Undo last edit
+void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+// Redo last undone edit
+void redo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+
+WINDOW *hexWin;
+WINDOW *statusWin;
 
 int main(void) {
   std::string filename;
@@ -60,13 +84,15 @@ int main(void) {
   curs_set(0);
   int rows, cols;
   getmaxyx(stdscr, rows, cols);
-  WINDOW *hexWin = newwin(rows - 1, cols, 0, 0);
-  WINDOW *statusWin = newwin(1, cols, rows - 1, 0);
   size_t cursor = 0;
   size_t start = 0;
   const int bytesPerLine = 16;
   bool running = true;
   bool modified = false;
+  std::stack<Edit> undoStack;
+  std::stack<Edit> redoStack;
+  hexWin = newwin(rows - 1, cols, 0, 0);
+  statusWin = newwin(1, cols, rows - 1, 0);
   werase(stdscr);
   wrefresh(stdscr);
   while (running) {
@@ -111,6 +137,14 @@ int main(void) {
           start = 0;
       }
       break;
+      case 'u': { // undo change
+        undo(buffer, undoStack, redoStack);
+      }
+      break;
+      case 'r': { // redo change
+        redo(buffer, undoStack, redoStack);
+      }
+      break;
       case 'e': { // Edit byte
         std::string valStr = prompt(statusWin, "Enter new hex value (00-FF): ");
         unsigned int val;
@@ -120,6 +154,7 @@ int main(void) {
           buffer[cursor] = static_cast<unsigned char>(val);
           modifiedFlags[cursor] = true;
           modified = true;
+          editByte(buffer, val, val, undoStack, redoStack);
         }
       }
       break;
@@ -194,13 +229,51 @@ int main(void) {
         break;
     }
   }
-
   delwin(hexWin);
   delwin(statusWin);
   endwin();
   return EXIT_SUCCESS;
 }
 
+// Edit a byte and push to undo stack
+void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+  if (offset >= buffer.size()) {
+    prompt(statusWin, "Error: Offset out of range");
+    return;
+  }
+  if (newValue > 0xFF) {
+    prompt(statusWin, "Error: Value must be between 0x00 and 0xFF");
+    return;
+  }
+  Edit e{offset, buffer[offset], static_cast<unsigned char>(newValue)};
+  buffer[offset] = e.newValue;
+  undoStack.push(e);
+  while (!redoStack.empty()) redoStack.pop(); // Clear redo stack after new edit
+}
+
+// Undo last edit
+void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+  if (undoStack.empty()) {
+    prompt(statusWin, "Nothing to undo.");
+    return;
+  }
+  Edit e = undoStack.top();
+  undoStack.pop();
+  buffer[e.offset] = e.oldValue;
+  redoStack.push(e);
+}
+
+// Redo last undone edit
+void redo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+   if (redoStack.empty()) {
+    prompt(statusWin, "Nothing to redo.");
+    return;
+  }
+  Edit e = redoStack.top();
+  redoStack.pop();
+  buffer[e.offset] = e.newValue;
+  undoStack.push(e);
+}
 
 // Load file into buffer
 bool readFile(const std::string &filename, std::vector<unsigned char> &buffer) {
@@ -270,7 +343,7 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
 void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
   werase(status);
   wattron(status, COLOR_PAIR(5));
-  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex", filename.c_str(), filesize, cursor, modified ? " [MODIFIED]" : "");
+  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex u=Undo r=Redo", filename.c_str(), filesize, cursor, modified ? " [MODIFIED]" : "");
   wattroff(status, COLOR_PAIR(5));
   wrefresh(status);
 }

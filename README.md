@@ -16,4 +16,4 @@ In Debian it's `sudo apt install libncurses5-dev libncursesw5-dev `, in your oth
 
 ### To-do:
 
-1. Add undo/redo functions and don't store the entire file many times for undo/redo, but only the parts that was exchanged.
+1. `Completed. But still needs some testing.` ~Add undo/redo functions and don't store the entire file many times for undo/redo, but only the parts that was exchanged.~
