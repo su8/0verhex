@@ -63,15 +63,11 @@ std::stack<Edit> redoStack;
 WINDOW *hexWin;
 WINDOW *statusWin;
 
-int main(void) {
-  std::string filename;
-  std::cout << "Enter file name: ";
-  std::getline(std::cin, filename);
+int main(int argc, char *argv[]) {
+  if (argc < 2) { std::cerr << "You must provide some file to work on." << std::endl; return EXIT_FAILURE;}
+  std::string filename = argv[1];
   std::vector<unsigned char> buffer;
-  if (!readFile(filename, buffer)) {
-    std::cerr << "Error: Cannot open file." << std::endl;
-    return EXIT_FAILURE;
-  }
+  if (!readFile(filename, buffer)) { std::cerr << "Error: Cannot open file " << filename << std::endl; return EXIT_FAILURE; }
   std::vector<bool> modifiedFlags(buffer.size(), false);
   initscr();
   // Enable colors
@@ -219,7 +215,7 @@ int main(void) {
         } else {
           prompt(statusWin, "Error saving file! Press Enter to continue.");
         }
-        break;
+      break;
       case 'q': // Quit
         if (modified) {
           std::string confirm = prompt(statusWin, "Unsaved changes! Type 'yes' to quit: ");
@@ -227,7 +223,7 @@ int main(void) {
         } else {
           running = false;
         }
-        break;
+      break;
       default:
         break;
     }
@@ -240,14 +236,8 @@ int main(void) {
 
 // Edit a byte and push to undo stack
 void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue) {
-  if (offset >= buffer.size()) {
-    prompt(statusWin, "Error: Offset out of range. Press enter to continue.");
-    return;
-  }
-  if (newValue > 0xFF) {
-    prompt(statusWin, "Error: Value must be between 0x00 and 0xFF. Press enter to continue.");
-    return;
-  }
+  if (offset >= buffer.size()) { prompt(statusWin, "Error: Offset out of range. Press enter to continue."); return; }
+  if (newValue > 0xFF) { prompt(statusWin, "Error: Value must be between 0x00 and 0xFF. Press enter to continue."); return; }
   Edit e{offset, buffer[offset], static_cast<unsigned char>(newValue)};
   buffer[offset] = e.newValue;
   undoStack.push(e);
@@ -256,10 +246,7 @@ void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int ne
 
 // Undo last edit
 void undo(std::vector<unsigned char> &buffer) {
-  if (undoStack.empty()) {
-    prompt(statusWin, "Nothing to undo. Press enter to continue.");
-    return;
-  }
+  if (undoStack.empty()) { prompt(statusWin, "Nothing to undo. Press enter to continue."); return; }
   Edit e = undoStack.top();
   undoStack.pop();
   buffer[e.offset] = e.oldValue;
@@ -268,10 +255,7 @@ void undo(std::vector<unsigned char> &buffer) {
 
 // Redo last undone edit
 void redo(std::vector<unsigned char> &buffer) {
-   if (redoStack.empty()) {
-    prompt(statusWin, "Nothing to redo. Press enter to continue.");
-    return;
-  }
+   if (redoStack.empty()) { prompt(statusWin, "Nothing to redo. Press enter to continue."); return; }
   Edit e = redoStack.top();
   redoStack.pop();
   buffer[e.offset] = e.newValue;
