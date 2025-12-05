@@ -58,22 +58,21 @@ int main(void) {
   cbreak();
   keypad(stdscr, TRUE);
   curs_set(0);
-
   int rows, cols;
   getmaxyx(stdscr, rows, cols);
   WINDOW *hexWin = newwin(rows - 1, cols, 0, 0);
   WINDOW *statusWin = newwin(1, cols, rows - 1, 0);
-
   size_t cursor = 0;
   size_t start = 0;
   const int bytesPerLine = 16;
   bool running = true;
   bool modified = false;
+  werase(stdscr);
+  wrefresh(stdscr);
   while (running) {
     drawHexView(hexWin, buffer, start, cursor, bytesPerLine);
     drawStatus(statusWin, filename, cursor, buffer.size(), modified);
-
-    int ch = wgetch(hexWin);
+    int ch = getch();
     switch (ch) {
       case KEY_UP: {
         if (cursor >= bytesPerLine) cursor -= bytesPerLine;
@@ -278,13 +277,13 @@ void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size
 
 // Prompt user for input
 std::string prompt(WINDOW *statusWin, const std::string &msg) {
+  char buf[256] = {'\0'};
   werase(statusWin);
   mvwprintw(statusWin, 0, 0, "%s", msg.c_str());
   wclrtoeol(statusWin);
   wrefresh(statusWin);
   echo();
   curs_set(1);
-  char buf[256] = {'\0'};
   wgetnstr(statusWin, buf, 255);
   noecho();
   curs_set(0);
