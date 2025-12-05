@@ -28,7 +28,8 @@
 
 bool readFile(const std::string &filename, std::vector<unsigned char> &buffer);
 bool writeFile(const std::string &filename, const std::vector<unsigned char> &buffer);
-void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, const std::vector<bool> &modifiedFlags, size_t start, size_t cursor, int rows);
+void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t start, size_t cursor, size_t bytesPerLine);
+void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified);
 std::string prompt(WINDOW *statusWin, const std::string &msg);
 size_t searchText(const std::vector<unsigned char> &buffer, const std::string &text, size_t start);
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
@@ -44,8 +45,15 @@ int main(void) {
   }
   std::vector<bool> modifiedFlags(buffer.size(), false);
   initscr();
-  start_color();
-  init_pair(1, COLOR_YELLOW, COLOR_BLACK);
+  // Enable colors
+  if (has_colors()) {
+    start_color();
+    init_pair(1, COLOR_CYAN,   COLOR_BLACK); // Offset
+    init_pair(2, COLOR_YELLOW, COLOR_BLACK); // Hex
+    init_pair(3, COLOR_GREEN,  COLOR_BLACK); // ASCII printable
+    init_pair(4, COLOR_WHITE,  COLOR_BLACK); // ASCII non-printable
+    init_pair(5, COLOR_WHITE,  COLOR_BLUE);  // Status bar
+  }
   noecho();
   cbreak();
   keypad(stdscr, TRUE);
@@ -62,12 +70,8 @@ int main(void) {
   bool running = true;
   bool modified = false;
   while (running) {
-    drawHexView(hexWin, buffer, modifiedFlags, start, cursor, rows - 1);
-    werase(statusWin);
-    mvwprintw(statusWin, 0, 0,
-      "File: %s | Cursor: 0x%zx | Size: %zu | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex",
-      filename.c_str(), cursor, buffer.size());
-    wrefresh(statusWin);
+    drawHexView(hexWin, buffer, start, cursor, bytesPerLine);
+    drawStatus(statusWin, filename, cursor, buffer.size(), modified);
 
     int ch = wgetch(hexWin);
     switch (ch) {
@@ -75,28 +79,28 @@ int main(void) {
         if (cursor >= bytesPerLine) cursor -= bytesPerLine;
         if (cursor < start) start -= bytesPerLine;
       }
-        break;
+      break;
       case KEY_DOWN: {
         if (cursor + bytesPerLine < buffer.size()) cursor += bytesPerLine;
         if (cursor >= start + (rows - 2) * bytesPerLine) start += bytesPerLine;
       }
-        break;
+      break;
       case KEY_LEFT: {
         if (cursor > 0) cursor--;
         if (cursor < start) start -= bytesPerLine;
       }
-        break;
+      break;
       case KEY_RIGHT: {
         if (cursor + 1 < buffer.size()) cursor++;
         if (cursor >= start + (rows - 2) * bytesPerLine) start += bytesPerLine;
       }
-        break;
+      break;
       case KEY_NPAGE: { // Page Down
         if (cursor + (rows - 2) * bytesPerLine < buffer.size())
-        cursor += (rows - 2) * bytesPerLine;
+          cursor += (rows - 2) * bytesPerLine;
         start = std::min(start + (rows - 2) * bytesPerLine, buffer.size() - 1);
       }
-        break;
+      break;
       case KEY_PPAGE: { // Page Up
         if (cursor >= (rows - 2) * bytesPerLine)
           cursor -= (rows - 2) * bytesPerLine;
@@ -107,7 +111,7 @@ int main(void) {
         else
           start = 0;
       }
-        break;
+      break;
       case 'e': { // Edit byte
         std::string valStr = prompt(statusWin, "Enter new hex value (00-FF): ");
         unsigned int val;
@@ -119,7 +123,7 @@ int main(void) {
           modified = true;
         }
       }
-        break;
+      break;
       case 'i': { // Insert bytes
         std::string hexStr = prompt(statusWin, "Enter hex bytes to insert (e.g., 41 42 43): ");
         std::istringstream iss(hexStr);
@@ -131,7 +135,7 @@ int main(void) {
         modifiedFlags.insert(modifiedFlags.begin() + cursor, data.size(), true);
         modified = true;
       }
-        break;
+      break;
       case 'd': { // Delete byte
         if (!buffer.empty()) {
           buffer.erase(buffer.begin() + cursor);
@@ -140,7 +144,7 @@ int main(void) {
           modified = true;
         }
       }
-        break;
+      break;
       case '/': { // Search ASCII
         std::string text = prompt(statusWin, "Enter ASCII text to search: ");
         size_t pos = searchText(buffer, text, cursor + 1);
@@ -152,7 +156,7 @@ int main(void) {
           prompt(statusWin, "Not found. Press Enter to continue.");
         }
       }
-        break;
+      break;
       case 'h': { // Search hex sequence
         std::string hexStr = prompt(statusWin, "Enter hex sequence (e.g., 48 65 6C): ");
         std::istringstream iss(hexStr);
@@ -165,11 +169,11 @@ int main(void) {
           cursor = pos;
           if (cursor < start || cursor >= start + (rows - 2) * bytesPerLine)
             start = (cursor / bytesPerLine) * bytesPerLine;
-       } else {
-         prompt(statusWin, "Not found. Press Enter to continue.");
-       }
-    }
-        break;
+        } else {
+          prompt(statusWin, "Not found. Press Enter to continue.");
+        }
+      }
+      break;
       case 's': // Save
         if (writeFile(filename, buffer)) {
           modified = false;
@@ -177,7 +181,7 @@ int main(void) {
           prompt(statusWin, "File saved. Press Enter to continue.");
         } else {
           prompt(statusWin, "Error saving file! Press Enter to continue.");
-      }
+        }
         break;
       case 'q': // Quit
         if (modified) {
@@ -215,39 +219,61 @@ bool writeFile(const std::string &filename, const std::vector<unsigned char> &bu
   return true;
 }
 
-// Draw hex + ASCII view
-void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, const std::vector<bool> &modifiedFlags, size_t start, size_t cursor, int rows) {
+// Draw hex + ASCII view with colors
+void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t start, size_t cursor, size_t bytesPerLine) {
   werase(win);
-  const int bytesPerLine = 16;
-  for (int row = 0; row < rows && (start + row * bytesPerLine) < buffer.size(); ++row) {
+  int rows, cols;
+  getmaxyx(win, rows, cols);
+  for (int row = 0; row < rows - 1; ++row) {
     size_t offset = start + row * bytesPerLine;
-    // Offset
-    mvwprintw(win, row, 0, "%08zx  ", offset);
-    // Hex
-    for (int col = 0; col < bytesPerLine; ++col) {
-      if (offset + col < buffer.size()) {
-        if (offset + col == cursor) wattron(win, A_REVERSE);
-          if (modifiedFlags[offset + col]) wattron(win, A_BOLD | COLOR_PAIR(1));
-          mvwprintw(win, row, 10 + col * 3, "%02X", buffer[offset + col]);
-          wattroff(win, A_BOLD | COLOR_PAIR(1));
-          wattroff(win, A_REVERSE);
+    if (offset >= buffer.size()) break;
+    // Offset column (cyan)
+    wattron(win, COLOR_PAIR(1));
+    mvwprintw(win, row, 0, "%08zx", offset);
+    wattroff(win, COLOR_PAIR(1));
+    wprintw(win, "  ");
+    // Hex bytes (yellow, highlight cursor)
+    for (size_t i = 0; i < bytesPerLine; ++i) {
+      if (offset + i < buffer.size()) {
+        if (offset + i == cursor) {
+          wattron(win, A_REVERSE | COLOR_PAIR(2));
+          mvwprintw(win, row, 10 + i * 3, "%02X", buffer[offset + i]);
+          wattroff(win, A_REVERSE | COLOR_PAIR(2));
+        } else {
+          wattron(win, COLOR_PAIR(2));
+          mvwprintw(win, row, 10 + i * 3, "%02X", buffer[offset + i]);
+          wattroff(win, COLOR_PAIR(2));
+        }
       } else {
-        mvwprintw(win, row, 10 + col * 3, "  ");
+          mvwprintw(win, row, 10 + i * 3, "  ");
       }
     }
-    // ASCII
-    for (int col = 0; col < bytesPerLine; ++col) {
-      if (offset + col < buffer.size()) {
-        unsigned char c = buffer[offset + col];
-        if (offset + col == cursor) wattron(win, A_REVERSE);
-        if (modifiedFlags[offset + col]) wattron(win, A_BOLD | COLOR_PAIR(1));
-        mvwprintw(win, row, 10 + bytesPerLine * 3 + 2 + col, "%c", std::isprint(c) ? c : '.');
-        wattroff(win, A_BOLD | COLOR_PAIR(1));
-        wattroff(win, A_REVERSE);
+    // ASCII representation (green for printable, dim gray for non-printable)
+    for (size_t i = 0; i < bytesPerLine; ++i) {
+      if (offset + i < buffer.size()) {
+        unsigned char c = buffer[offset + i];
+        if (std::isprint(c)) {
+          wattron(win, COLOR_PAIR(3));
+          mvwaddch(win, row, 10 + bytesPerLine * 3 + 2 + i, c);
+          wattroff(win, COLOR_PAIR(3));
+        } else {
+          wattron(win, COLOR_PAIR(4));
+          mvwaddch(win, row, 10 + bytesPerLine * 3 + 2 + i, '.');
+          wattroff(win, COLOR_PAIR(4));
+        }
       }
     }
   }
   wrefresh(win);
+}
+
+// Draw status bar (white on blue)
+void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
+  werase(status);
+  wattron(status, COLOR_PAIR(5));
+  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx %s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex", filename.c_str(), filesize, cursor, modified ? "[MODIFIED]" : "");
+  wattroff(status, COLOR_PAIR(5));
+  wrefresh(status);
 }
 
 // Prompt user for input
@@ -258,7 +284,7 @@ std::string prompt(WINDOW *statusWin, const std::string &msg) {
   wrefresh(statusWin);
   echo();
   curs_set(1);
-  char buf[256];
+  char buf[256] = {'\0'};
   wgetnstr(statusWin, buf, 255);
   noecho();
   curs_set(0);
