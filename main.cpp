@@ -238,11 +238,11 @@ int main(void) {
 // Edit a byte and push to undo stack
 void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
   if (offset >= buffer.size()) {
-    prompt(statusWin, "Error: Offset out of range");
+    prompt(statusWin, "Error: Offset out of range. Press enter to continue.");
     return;
   }
   if (newValue > 0xFF) {
-    prompt(statusWin, "Error: Value must be between 0x00 and 0xFF");
+    prompt(statusWin, "Error: Value must be between 0x00 and 0xFF. Press enter to continue.");
     return;
   }
   Edit e{offset, buffer[offset], static_cast<unsigned char>(newValue)};
@@ -254,7 +254,7 @@ void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int ne
 // Undo last edit
 void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
   if (undoStack.empty()) {
-    prompt(statusWin, "Nothing to undo.");
+    prompt(statusWin, "Nothing to undo. Press enter to continue.");
     return;
   }
   Edit e = undoStack.top();
@@ -266,7 +266,7 @@ void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::
 // Redo last undone edit
 void redo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
    if (redoStack.empty()) {
-    prompt(statusWin, "Nothing to redo.");
+    prompt(statusWin, "Nothing to redo. Press enter to continue.");
     return;
   }
   Edit e = redoStack.top();
