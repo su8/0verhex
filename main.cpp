@@ -271,7 +271,7 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
 void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
   werase(status);
   wattron(status, COLOR_PAIR(5));
-  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx %s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex", filename.c_str(), filesize, cursor, modified ? "[MODIFIED]" : "");
+  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex", filename.c_str(), filesize, cursor, modified ? " [MODIFIED]" : "");
   wattroff(status, COLOR_PAIR(5));
   wrefresh(status);
 }
