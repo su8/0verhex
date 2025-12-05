@@ -13,3 +13,7 @@ sudo/doas make install
 # Requirements
 
 In Debian it's `sudo apt install libncurses5-dev libncursesw5-dev `, in your other OS's search for `lib ncurses`.
+
+### To-do:
+
+1. Add undo/redo functions and don't store the entire file many times for undo/redo, but only the parts that was exchanged.
