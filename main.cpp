@@ -49,12 +49,17 @@ size_t searchText(const std::vector<unsigned char> &buffer, const std::string &t
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
 
 // Edit a byte and push to undo stack
-void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue);
 // Undo last edit
-void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+void undo(std::vector<unsigned char> &buffer);
 // Redo last undone edit
-void redo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack);
+void redo(std::vector<unsigned char> &buffer);
 
+// Undo/Redo actions
+std::stack<Edit> undoStack;
+std::stack<Edit> redoStack;
+
+// The hex and status line windows
 WINDOW *hexWin;
 WINDOW *statusWin;
 
@@ -89,8 +94,6 @@ int main(void) {
   const int bytesPerLine = 16;
   bool running = true;
   bool modified = false;
-  std::stack<Edit> undoStack;
-  std::stack<Edit> redoStack;
   hexWin = newwin(rows - 1, cols, 0, 0);
   statusWin = newwin(1, cols, rows - 1, 0);
   werase(stdscr);
@@ -154,7 +157,7 @@ int main(void) {
           buffer[cursor] = static_cast<unsigned char>(val);
           modifiedFlags[cursor] = true;
           modified = true;
-          editByte(buffer, val, val, undoStack, redoStack);
+          editByte(buffer, val, val);
         }
       }
       break;
@@ -236,7 +239,7 @@ int main(void) {
 }
 
 // Edit a byte and push to undo stack
-void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue) {
   if (offset >= buffer.size()) {
     prompt(statusWin, "Error: Offset out of range. Press enter to continue.");
     return;
@@ -252,7 +255,7 @@ void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int ne
 }
 
 // Undo last edit
-void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+void undo(std::vector<unsigned char> &buffer) {
   if (undoStack.empty()) {
     prompt(statusWin, "Nothing to undo. Press enter to continue.");
     return;
@@ -264,7 +267,7 @@ void undo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::
 }
 
 // Redo last undone edit
-void redo(std::vector<unsigned char> &buffer, std::stack<Edit> &undoStack, std::stack<Edit> &redoStack) {
+void redo(std::vector<unsigned char> &buffer) {
    if (redoStack.empty()) {
     prompt(statusWin, "Nothing to redo. Press enter to continue.");
     return;
