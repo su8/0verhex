@@ -141,11 +141,11 @@ int main(void) {
       }
       break;
       case 'u': { // undo change
-        undo(buffer, undoStack, redoStack);
+        undo(buffer);
       }
       break;
       case 'r': { // redo change
-        redo(buffer, undoStack, redoStack);
+        redo(buffer);
       }
       break;
       case 'e': { // Edit byte
