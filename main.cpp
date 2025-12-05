@@ -42,7 +42,7 @@ bool writeFile(const std::string &filename, const std::vector<unsigned char> &bu
 // Draw functions
 void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t start, size_t cursor, size_t bytesPerLine);
 void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified);
-std::string prompt(WINDOW *statusWin, const std::string &msg);
+std::string prompt(WINDOW *status, const std::string &msg);
 
 // Searching functions
 size_t searchText(const std::vector<unsigned char> &buffer, const std::string &text, size_t start);
@@ -352,15 +352,15 @@ void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size
 }
 
 // Prompt user for input
-std::string prompt(WINDOW *statusWin, const std::string &msg) {
+std::string prompt(WINDOW *status, const std::string &msg) {
   char buf[256] = {'\0'};
-  werase(statusWin);
-  mvwprintw(statusWin, 0, 0, "%s", msg.c_str());
-  wclrtoeol(statusWin);
-  wrefresh(statusWin);
+  werase(status);
+  mvwprintw(status, 0, 0, "%s", msg.c_str());
+  wclrtoeol(status);
+  wrefresh(status);
   echo();
   curs_set(1);
-  wgetnstr(statusWin, buf, 255);
+  wgetnstr(status, buf, 255);
   noecho();
   curs_set(0);
   return std::string(buf);
