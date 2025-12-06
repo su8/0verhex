@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <stack>
 #include <limits>
+#include <cstdint>
 #include <ncurses.h>
 
 // Structure to store an edit operation
@@ -41,13 +42,15 @@ bool writeFile(const std::string &filename, const std::vector<unsigned char> &bu
 
 // Draw functions
 void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t start, size_t cursor, size_t bytesPerLine);
-void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified);
+void drawStatus(WINDOW *status, const std::vector<unsigned char> &buffer, const std::string &filename, size_t cursor, size_t filesize, bool modified);
 std::string prompt(WINDOW *status, const std::string &msg);
 
 // Searching functions
 size_t searchText(const std::vector<unsigned char> &buffer, const std::string &text, size_t start);
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
 
+// Function to compute an 8-bit checksum (sum of bytes modulo 256)
+unsigned char checkSum(const std::vector<uint8_t> &data);
 // Edit a byte and push to undo stack
 void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue);
 // Undo last edit
@@ -96,7 +99,7 @@ int main(int argc, char *argv[]) {
   wrefresh(stdscr);
   while (running) {
     drawHexView(hexWin, buffer, start, cursor, bytesPerLine);
-    drawStatus(statusWin, filename, cursor, buffer.size(), modified);
+    drawStatus(statusWin, buffer, filename, cursor, buffer.size(), modified);
     int ch = getch();
     switch (ch) {
       case KEY_UP: {
@@ -215,7 +218,7 @@ int main(int argc, char *argv[]) {
         } else {
           prompt(statusWin, "Error saving file! Press Enter to continue.");
         }
-      break;
+        break;
       case 'q': // Quit
         if (modified) {
           std::string confirm = prompt(statusWin, "Unsaved changes! Type 'yes' to quit: ");
@@ -223,7 +226,7 @@ int main(int argc, char *argv[]) {
         } else {
           running = false;
         }
-      break;
+        break;
       default:
         break;
     }
@@ -232,6 +235,13 @@ int main(int argc, char *argv[]) {
   delwin(statusWin);
   endwin();
   return EXIT_SUCCESS;
+}
+
+// Function to compute an 8-bit checksum (sum of bytes modulo 256)
+unsigned char checkSum(const std::vector<uint8_t> &data) {
+  uint32_t sum = 0;
+  for (unsigned char byte : data) { sum += byte; }
+  return static_cast<unsigned char>(sum & 0xFF); // modulo 256
 }
 
 // Edit a byte and push to undo stack
@@ -255,7 +265,7 @@ void undo(std::vector<unsigned char> &buffer) {
 
 // Redo last undone edit
 void redo(std::vector<unsigned char> &buffer) {
-   if (redoStack.empty()) { prompt(statusWin, "Nothing to redo. Press enter to continue."); return; }
+  if (redoStack.empty()) { prompt(statusWin, "Nothing to redo. Press enter to continue."); return; }
   Edit e = redoStack.top();
   redoStack.pop();
   buffer[e.offset] = e.newValue;
@@ -304,7 +314,7 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
           wattroff(win, COLOR_PAIR(2));
         }
       } else {
-          mvwprintw(win, row, 10 + i * 3, "  ");
+        mvwprintw(win, row, 10 + i * 3, "  ");
       }
     }
     // ASCII representation (green for printable, dim gray for non-printable)
@@ -327,10 +337,10 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
 }
 
 // Draw status bar (white on blue)
-void drawStatus(WINDOW *status, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
+void drawStatus(WINDOW *status, const std::vector<unsigned char> &buffer, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
   werase(status);
   wattron(status, COLOR_PAIR(5));
-  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex u=Undo r=Redo", filename.c_str(), filesize, cursor, modified ? " [MODIFIED]" : "");
+  mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | 8bitSum: %s | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex u=Undo r=Redo", filename.c_str(), filesize, std::to_string(checkSum(buffer)).c_str(), cursor, modified ? " [MODIFIED]" : "");
   wattroff(status, COLOR_PAIR(5));
   wrefresh(status);
 }
