@@ -50,7 +50,7 @@ size_t searchText(const std::vector<unsigned char> &buffer, const std::string &t
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
 
 // Function to compute an 8-bit checksum (sum of bytes modulo 256)
-unsigned char checkSum(const std::vector<uint8_t> &data);
+uint8_t checkSum(const std::vector<uint8_t> &data);
 // Edit a byte and push to undo stack
 void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue);
 // Undo last edit
@@ -238,10 +238,10 @@ int main(int argc, char *argv[]) {
 }
 
 // Function to compute an 8-bit checksum (sum of bytes modulo 256)
-unsigned char checkSum(const std::vector<uint8_t> &data) {
+uint8_t checkSum(const std::vector<uint8_t> &data) {
   uint32_t sum = 0;
-  for (unsigned char byte : data) { sum += byte; }
-  return static_cast<unsigned char>(sum & 0xFF); // modulo 256
+  for (uint8_t byte : data) { sum += byte; }
+  return static_cast<uint8_t>(sum & 0xFF); // modulo 256
 }
 
 // Edit a byte and push to undo stack
