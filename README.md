@@ -62,7 +62,7 @@ void disassemble(const std::vector<uint8_t> &data, uint64_t startAddr = 0x1000) 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <binary_file>\n";
-        return EXIT_FAIULURE;
+        return EXIT_FAILURE;
     }
     try {
         auto data = readBinaryFile(argv[1]);
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     }
     catch (const std::exception &e) {
         std::cerr << e.what() << "\n";
-        return EXIT_FAIULURE;
+        return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
