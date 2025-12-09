@@ -297,21 +297,21 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
     size_t offset = start + row * bytesPerLine;
     if (offset >= buffer.size()) break;
     // Offset column (cyan)
-    wattron(win, COLOR_PAIR(1));
+    wattron(win, COLOR_PAIR(1) | A_BOLD);
     mvwprintw(win, row, 0, "%08zx", offset);
-    wattroff(win, COLOR_PAIR(1));
+    wattroff(win, COLOR_PAIR(1) | A_BOLD);
     wprintw(win, "  ");
     // Hex bytes (yellow, highlight cursor)
     for (size_t i = 0; i < bytesPerLine; ++i) {
       if (offset + i < buffer.size()) {
         if (offset + i == cursor) {
-          wattron(win, A_REVERSE | COLOR_PAIR(2));
+          wattron(win, A_REVERSE | COLOR_PAIR(2) | A_BOLD);
           mvwprintw(win, row, 10 + i * 3, "%02X", buffer[offset + i]);
-          wattroff(win, A_REVERSE | COLOR_PAIR(2));
+          wattroff(win, A_REVERSE | COLOR_PAIR(2) | A_BOLD);
         } else {
-          wattron(win, COLOR_PAIR(2));
+          wattron(win, COLOR_PAIR(2) | A_BOLD);
           mvwprintw(win, row, 10 + i * 3, "%02X", buffer[offset + i]);
-          wattroff(win, COLOR_PAIR(2));
+          wattroff(win, COLOR_PAIR(2) | A_BOLD);
         }
       } else {
         mvwprintw(win, row, 10 + i * 3, "  ");
@@ -322,13 +322,13 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
       if (offset + i < buffer.size()) {
         unsigned char c = buffer[offset + i];
         if (std::isprint(c)) {
-          wattron(win, COLOR_PAIR(3));
+          wattron(win, COLOR_PAIR(3) | A_BOLD);
           mvwaddch(win, row, 10 + bytesPerLine * 3 + 2 + i, c);
-          wattroff(win, COLOR_PAIR(3));
+          wattroff(win, COLOR_PAIR(3) | A_BOLD);
         } else {
-          wattron(win, COLOR_PAIR(4));
+          wattron(win, COLOR_PAIR(4) | A_BOLD);
           mvwaddch(win, row, 10 + bytesPerLine * 3 + 2 + i, '.');
-          wattroff(win, COLOR_PAIR(4));
+          wattroff(win, COLOR_PAIR(4) | A_BOLD);
         }
       }
     }
@@ -339,9 +339,9 @@ void drawHexView(WINDOW *win, const std::vector<unsigned char> &buffer, size_t s
 // Draw status bar (white on blue)
 void drawStatus(WINDOW *status, const std::vector<unsigned char> &buffer, const std::string &filename, size_t cursor, size_t filesize, bool modified) {
   werase(status);
-  wattron(status, COLOR_PAIR(5));
+  wattron(status, COLOR_PAIR(5) | A_BOLD);
   mvwprintw(status, 0, 0, "File: %s | Size: %zu bytes | 8bitSum: %s | Cursor: 0x%zx%s | q=Quit s=Save e=Edit i=Insert d=Delete / SearchASCII h=SearchHex u=Undo r=Redo", filename.c_str(), filesize, std::to_string(checkSum(buffer)).c_str(), cursor, modified ? " [MODIFIED]" : "");
-  wattroff(status, COLOR_PAIR(5));
+  wattroff(status, COLOR_PAIR(5) | A_BOLD);
   wrefresh(status);
 }
 
