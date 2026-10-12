@@ -50,7 +50,7 @@ size_t searchText(const std::vector<unsigned char> &buffer, const std::string &t
 size_t searchHex(const std::vector<unsigned char> &buffer, const std::vector<unsigned char> &pattern, size_t start);
 
 // Function to compute an 8-bit checksum (sum of bytes modulo 256)
-uint8_t checkSum(const std::vector<uint8_t> &data);
+uint8_t checkSum(const std::vector<unsigned char> &data);
 // Edit a byte and push to undo stack
 void editByte(std::vector<unsigned char> &buffer, size_t offset, unsigned int newValue);
 // Undo last edit
@@ -123,9 +123,8 @@ int main(int argc, char *argv[]) {
       }
       break;
       case KEY_NPAGE: { // Page Down
-        if (cursor + (rows - 2) * bytesPerLine < buffer.size())
-          cursor += (rows - 2) * bytesPerLine;
-        start = std::min(start + (rows - 2) * bytesPerLine, buffer.size() - 1);
+        if (cursor + (rows - 2) * bytesPerLine < buffer.size()) { cursor += (rows - 2) * bytesPerLine; }
+        if (buffer.size() > 0) { start = std::min(start + (rows - 2) * bytesPerLine, buffer.size() - 1); }
       }
       break;
       case KEY_PPAGE: { // Page Up
@@ -153,10 +152,9 @@ int main(int argc, char *argv[]) {
         std::stringstream ss;
         ss << std::hex << valStr;
         if (ss >> val && val <= 0xFF) {
-          buffer[cursor] = static_cast<unsigned char>(val);
+          editByte(buffer, cursor, val);
           modifiedFlags[cursor] = true;
           modified = true;
-          editByte(buffer, val, val);
         }
       }
       break;
@@ -238,7 +236,7 @@ int main(int argc, char *argv[]) {
 }
 
 // Function to compute an 8-bit checksum (sum of bytes modulo 256)
-uint8_t checkSum(const std::vector<uint8_t> &data) {
+uint8_t checkSum(const std::vector<unsigned char> &data) {
   uint32_t sum = 0;
   for (uint8_t byte : data) { sum += byte; }
   return static_cast<uint8_t>(sum & 0xFF); // modulo 256
