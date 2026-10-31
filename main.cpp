@@ -1,5 +1,5 @@
 /*
- * Copyright 10/30/2026 12/05/2025 https://github.com/su8/0verhex
+ * Copyright 10/31/2026 12/05/2025 https://github.com/su8/0verhex
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -383,6 +383,7 @@ static bool promptLine(Ui &ui, const std::string &msg, std::string &out) {
   out.clear();
   curs_set(1);
   bool accepted = false;
+  int errors = 0;
   for (;;) {
     werase(ui.status);
     // when the text is longer than the line the end of it is shown
@@ -394,6 +395,8 @@ static bool promptLine(Ui &ui, const std::string &msg, std::string &out) {
     wrefresh(ui.status);
     const int ch = wgetch(ui.status);
     if (gTerminate) { break; }
+    if (ch == ERR) { if (++errors > 100) { break; } continue; } // the terminal is gone: don't wait for ever
+    errors = 0;
     if (ch == '\n' || ch == '\r' || ch == KEY_ENTER) { accepted = true; break; }
     if (ch == 27 || ch == 3) { break; }
     if ((ch == KEY_BACKSPACE || ch == 127 || ch == 8) && !out.empty()) { out.erase(out.size() - 1); }
@@ -578,12 +581,15 @@ int main(int argc, char *argv[]) {
   Ui ui;
   layoutWindows(ui, doc);
   bool running = true;
+  int errors = 0; // keys that did not come: a signal, or the terminal is gone and it would go on for ever
   while (running && !gTerminate) {
     if (ui.tooSmall) {
       werase(stdscr);
       mvaddstr(0, 0, "Terminal too small");
       wrefresh(stdscr);
       const int key = getch();
+      if (key == ERR) { if (++errors > 100) { break; } continue; }
+      errors = 0;
       if (key == KEY_RESIZE) { layoutWindows(ui, doc); }
       else if (key == 'q' || key == 3) { break; }
       continue;
@@ -592,7 +598,8 @@ int main(int argc, char *argv[]) {
     drawHexView(ui.hex, doc, ui);
     drawStatus(ui.status, doc, filename, ui);
     const int ch = wgetch(ui.status);
-    if (ch == ERR) { continue; } // a signal came in: the loop condition looks at it
+    if (ch == ERR) { if (++errors > 100) { break; } continue; } // a signal came in: the loop condition looks at it
+    errors = 0;
     ui.message.clear();
     if (ch == KEY_RESIZE) { layoutWindows(ui, doc); continue; }
     running = handleKey(ui, doc, filename, ch);
